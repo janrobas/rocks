@@ -1,0 +1,298 @@
+<html>
+    <style>
+        html, body {
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgb(107, 132, 180);
+            background-color: #fff;
+        }
+
+        canvas {
+            background-color: #fff;
+        }
+</style>
+
+<body>
+    <canvas id="myCanvas">
+    </canvas>
+
+    <script>
+        setTimeout(initGame, 1000);
+
+        function initGame() {
+            let body = document.getElementsByTagName("body")[0];
+
+            let gameHeight = 700;
+            let gameWidth = gameHeight * body.clientWidth / body.clientHeight;
+
+            let canvas = document.getElementById("myCanvas")
+
+            let scalingFactor = Math.min(body.clientHeight/gameHeight, body.clientWidth/gameWidth);
+            canvas.height = gameHeight * scalingFactor;
+            canvas.width = gameWidth * scalingFactor;
+            
+            let constants = {
+                asteroidSpeed: 0.08,
+                projectileSpeed: 0.16,
+                maxRocks: 65,
+                maxViewRotateSpeed: 0.001,
+                maxViewRotatation: 0.35,
+                shipX: gameWidth / 2,
+                shipY: gameHeight - 70,
+                width: gameWidth,
+                height: gameHeight,
+                scalingFactor: scalingFactor
+            };
+
+            
+            let ctx = canvas.getContext("2d")
+            ctx.scale(constants.scalingFactor, constants.scalingFactor);
+
+            let gameState = {};
+            resetGameState();
+            function resetGameState() {
+                gameState = {
+                    weaponReloading: false,
+                    rocks: [],
+                    projectiles: [],
+                    viewRotateSpeed: 0,
+                    viewRotation: 0,
+                    shoot: null
+                };
+            }
+
+            function translateX(x, y, angle) {
+                return x * Math.cos(angle) - y * Math.sin(angle)
+            }
+
+            function translateY(x, y, angle) {
+                return x * Math.sin(angle) + y * Math.cos(angle)
+            }
+
+            function calculateXY(originX, originY, x, y, angle) {
+                newX = originX + translateX(x, y, angle)
+                newY = originY + translateY(x, y, angle)
+
+                return {
+                    x: translateX(newX, newY, angle),
+                    y: translateY(newX, newY, angle),
+                }
+            }
+
+            function lineToWithRotation(ctx, ox, oy, x, y, angle) {
+                let xy = calculateXY(ox, oy, x, y, angle);
+                ctx.lineTo(xy.x, xy.y);
+            }
+
+            function drawRock(rock) {
+                ctx.beginPath()
+
+                for (let i = 0; i < 2 * Math.PI; i += rock.shape) {
+                    let x = Math.sin(i) * rock.size
+                    let y = Math.cos(i) * rock.size
+
+                    let xy = calculateXY(rock.x, rock.y, x, y, gameState.viewRotation)
+                    ctx.lineTo(xy.x, xy.y)
+                }
+
+                ctx.closePath()
+                ctx.stroke()
+            }
+
+            function drawProjectile(projectile) {
+                ctx.beginPath()
+
+                /*let xy = calculateXY(projectile.x, projectile.y, 0, 0, gameState.viewRotation)
+                ctx.arc(xy.x, xy.y, 5, 0, Math.PI * 2)*/
+                
+                ctx.arc(projectile.x, projectile.y, 5, 0, Math.PI * 2)
+                ctx.stroke()
+            }
+
+            function drawShip(x, y) {
+                ctx.beginPath()
+
+                lineToWithRotation(ctx, x, y, 0, 0, gameState.viewRotation*0.04)
+                //ctx.lineTo(x - 20, y + 30)
+                lineToWithRotation(ctx, x, y, -20, 30, gameState.viewRotation*0.04)
+                //ctx.lineTo(x + 20, y + 30)
+                lineToWithRotation(ctx, x, y, +20, 30, gameState.viewRotation*0.04)
+                ctx.closePath()
+                ctx.stroke()
+                ctx.fill();
+            }
+
+            function generateRocks() {
+                if (gameState.rocks.length < constants.maxRocks) {
+                    for (let n = 0; n < constants.maxRocks - gameState.rocks.length; n++) {
+                        gameState.rocks.push({
+                            x: (Math.random() * constants.width * 2.8) - constants.width * 1.4,
+                            y: (-100 - Math.random() * constants.height),
+                            angle: Math.random() * 10,
+                            size: 11 + Math.random() * 17,
+                            shape: 1 + Math.random() * 0.35
+                        })
+                    }
+                }
+            }
+
+            function getNormalizedVector(projectile) {
+                let vecX = (projectile.toX - projectile.fromX);
+                let vecY = Math.abs(projectile.toY - projectile.fromY);
+                let vecLength = Math.sqrt(vecX * vecX + vecY * vecY);
+
+                return {
+                    x: vecX / vecLength,
+                    y: vecY / vecLength
+                };
+            }
+
+            canvas.addEventListener('mousedown', ev => {
+                if (gameState.weaponReloading)
+                    return
+
+                // https://stackoverflow.com/questions/17130395/real-mouse-position-in-canvas
+                let rect = canvas.getBoundingClientRect();
+                gameState.shoot = {
+                    x: (ev.clientX - rect.left) * 1/constants.scalingFactor,
+                    y: (ev.clientY - rect.top) * 1/constants.scalingFactor
+                };
+
+                gameState.weaponReloading = true;
+
+                setTimeout(() => gameState.weaponReloading = false, 500);
+            }, false);
+
+            let timeStamp = Date.now();
+            let loop = setInterval(() => {
+                let timeDiff = Date.now() - timeStamp;
+                timeStamp = Date.now();
+
+                if (gameState.shoot) {
+                    // draw aim
+                    /*ctx.beginPath()
+                    ctx.arc(gameState.shoot.x, gameState.shoot.y, 5, 0, Math.PI * 2)
+                    ctx.stroke()
+                    ctx.fill();*/
+
+                    //let xy = calculateXY(constants.width / 2, constants.height - 70, 0, 0, -gameState.viewRotation)
+
+                    let projectile = {
+                        fromX: constants.shipX,
+                        fromY: constants.shipY,
+                        x: constants.shipX,
+                        y: constants.shipY,
+                        toX: gameState.shoot.x,
+                        toY: gameState.shoot.y,
+                    };
+                    gameState.projectiles.push(projectile);
+
+                    let normalizedVector = getNormalizedVector(projectile);
+                    //gameState.viewRotateSpeed += ((constants.width / 2 - gameState.shoot.x) / constants.width) * constants.maxViewRotateSpeed * 0.01 * timeDiff;
+                    gameState.viewRotateSpeed -= normalizedVector.x/100000*timeDiff;
+                    
+                    gameState.shoot = null;
+                }
+
+                gameState.viewRotation += gameState.viewRotateSpeed * timeDiff;
+
+                if (Math.abs(gameState.viewRotateSpeed) > constants.maxViewRotateSpeed) {
+                    gameState.viewRotateSpeed = Math.sign(gameState.viewRotateSpeed) * constants.maxViewRotateSpeed;
+                }
+
+                if (Math.abs(gameState.viewRotation) > constants.maxViewRotatation) {
+                    gameState.viewRotation = Math.sign(gameState.viewRotation) * constants.maxViewRotatation;
+
+                    gameState.viewRotateSpeed = -Math.sign(gameState.viewRotateSpeed) *
+                        Math.max(
+                            constants.maxViewRotateSpeed * 0.11,
+                            Math.min(Math.abs(gameState.viewRotateSpeed), constants.maxViewRotateSpeed * 0.33)
+                        );
+                }
+
+                generateRocks();
+
+                for (let rock of gameState.rocks) {
+                    let xy = calculateXY(rock.x, rock.y, 0, 0, gameState.viewRotation);
+
+                    if (Math.abs(xy.x - constants.shipX) < (20 + rock.size / 4)
+                        && Math.abs(xy.y - constants.shipY) < (10 + rock.size / 4)) {
+
+                        if (true || confirm("Game over. Play again?")) {
+                            resetGameState();
+                        }
+                    }
+
+                    //rock.angle += gameState.viewRotateSpeed * timeDiff;
+                    rock.y += constants.asteroidSpeed * timeDiff;
+                }
+
+                for (let ixProjectile in gameState.projectiles) {
+                    let projectile = gameState.projectiles[ixProjectile];
+                    if (!projectile) {
+                        continue;
+                    }
+
+                    let normalizedVector = getNormalizedVector(projectile);
+                    projectile.x += normalizedVector.x * constants.projectileSpeed * timeDiff
+                    projectile.y -= normalizedVector.y * constants.projectileSpeed * timeDiff
+
+                    for (let ixRock in gameState.rocks) {
+                        let rock = gameState.rocks[ixRock];
+                        if (!rock) {
+                            continue;
+                        }
+                        let rockXy = calculateXY(rock.x, rock.y, 0, 0, gameState.viewRotation);
+
+                        // if there is a collision between projectile and a rock, we must destroy both
+                        // TODO: check
+                        if (Math.abs(rockXy.x - projectile.x) < rock.size
+                            && Math.abs(rockXy.y - projectile.y) < rock.size) {
+                            gameState.rocks[ixRock] = null;
+                            gameState.projectiles[ixProjectile] = null;
+                        }
+                    }
+                }
+
+                // cleanup: delete rocks and projectiles
+                gameState.rocks = gameState.rocks.filter(r => r && r.y < constants.height + r.size * 4);
+                gameState.projectiles = gameState.projectiles.filter(p => p);
+
+                window.requestAnimationFrame(() => {
+                    ctx.clearRect(0, 0, constants.width, constants.height);
+
+                    if (gameState.viewRotation > 0.3) {
+                        ctx.rect(constants.width - 10, 0, constants.width, constants.height);
+                    } else if (gameState.viewRotation < -0.3) {
+                        ctx.rect(0, 0, 10, constants.height);
+                    }
+
+                    ctx.fill();
+
+                    for (let projectile of gameState.projectiles) {
+                        drawProjectile(projectile);
+                    }
+
+                    for (let rock of gameState.rocks) {
+                        drawRock(rock);
+                    }
+
+                    drawShip(constants.shipX, constants.shipY, 0);
+                });
+
+            }, 20);
+
+        };
+    </script>
+
+</body>
+
+</html>
