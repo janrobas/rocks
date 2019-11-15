@@ -38,13 +38,15 @@
             let scalingFactor = Math.min(body.clientHeight/gameHeight, body.clientWidth/gameWidth);
             canvas.height = gameHeight * scalingFactor;
             canvas.width = gameWidth * scalingFactor;
+
+            let maxRocks = gameHeight * gameWidth / 4500;
             
             let constants = {
                 asteroidSpeed: 0.08,
                 projectileSpeed: 0.16,
-                maxRocks: 65,
+                maxRocks: maxRocks,
                 maxViewRotateSpeed: 0.001,
-                maxViewRotatation: 0.35,
+                maxViewRotatation: 0.25,
                 shipX: gameWidth / 2,
                 shipY: gameHeight - 70,
                 width: gameWidth,
@@ -263,7 +265,15 @@
                 }
 
                 // cleanup: delete rocks and projectiles
-                gameState.rocks = gameState.rocks.filter(r => r && r.y < constants.height + r.size * 4);
+                gameState.rocks = gameState.rocks.filter(r => {
+                    if (!r) {
+                        return false;
+                    }
+
+                    let rockXy = calculateXY(r.x, r.y, 0, 0, gameState.viewRotation);
+
+                    return rockXy.y < constants.height + r.size * 4;
+                });
                 gameState.projectiles = gameState.projectiles.filter(p => p);
 
                 window.requestAnimationFrame(() => {
