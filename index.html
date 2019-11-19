@@ -25,7 +25,9 @@
     </canvas>
 
     <script>
-        setTimeout(initGame, 1000);
+        (function() {
+            setTimeout(initGame, 0);
+        })();
 
         function initGame() {
             let body = document.getElementsByTagName("body")[0];
@@ -67,7 +69,8 @@
                     projectiles: [],
                     viewRotateSpeed: 0,
                     viewRotation: 0,
-                    shoot: null
+                    shoot: null,
+                    maxRocks: 16
                 };
             }
 
@@ -111,21 +114,14 @@
 
             function drawProjectile(projectile) {
                 ctx.beginPath()
-
-                /*let xy = calculateXY(projectile.x, projectile.y, 0, 0, gameState.viewRotation)
-                ctx.arc(xy.x, xy.y, 5, 0, Math.PI * 2)*/
-                
                 ctx.arc(projectile.x, projectile.y, 5, 0, Math.PI * 2)
                 ctx.stroke()
             }
 
             function drawShip(x, y) {
                 ctx.beginPath()
-
                 lineToWithRotation(ctx, x, y, 0, 0, gameState.viewRotation*0.04)
-                //ctx.lineTo(x - 20, y + 30)
                 lineToWithRotation(ctx, x, y, -20, 30, gameState.viewRotation*0.04)
-                //ctx.lineTo(x + 20, y + 30)
                 lineToWithRotation(ctx, x, y, +20, 30, gameState.viewRotation*0.04)
                 ctx.closePath()
                 ctx.stroke()
@@ -133,16 +129,18 @@
             }
 
             function generateRocks() {
-                if (gameState.rocks.length < constants.maxRocks) {
-                    for (let n = 0; n < constants.maxRocks - gameState.rocks.length; n++) {
-                        gameState.rocks.push({
-                            x: (Math.random() * constants.width * 2.8) - constants.width * 1.4,
-                            y: (-100 - Math.random() * constants.height),
-                            angle: Math.random() * 10,
-                            size: 11 + Math.random() * 17,
-                            shape: 1 + Math.random() * 0.35
-                        })
-                    }
+                for (let n = 0; n < gameState.maxRocks - gameState.rocks.length; n++) {
+                    let size = 11 + Math.random() * 17;
+                    let x = (Math.random() * constants.width * 2.8) - constants.width * 1.4;
+                    let y = -(size * 4 + Math.random() * constants.height) - constants.height/2;
+
+                    gameState.rocks.push({
+                        x: x,
+                        y: y,
+                        angle: Math.random() * 10,
+                        size: size,
+                        shape: 1 + Math.random() * 0.35
+                    })
                 }
             }
 
@@ -177,6 +175,9 @@
             let loop = setInterval(() => {
                 let timeDiff = Date.now() - timeStamp;
                 timeStamp = Date.now();
+
+                gameState.maxRocks += timeDiff/100;
+                
 
                 if (gameState.shoot) {
                     // draw aim
@@ -227,7 +228,7 @@
 
                     if (Math.abs(xy.x - constants.shipX) < (20 + rock.size / 4)
                         && Math.abs(xy.y - constants.shipY) < (10 + rock.size / 4)) {
-
+alert(gameState.maxRocks);  // 940 
                         if (true || confirm("Game over. Play again?")) {
                             resetGameState();
                         }
@@ -252,10 +253,10 @@
                         if (!rock) {
                             continue;
                         }
+
                         let rockXy = calculateXY(rock.x, rock.y, 0, 0, gameState.viewRotation);
 
                         // if there is a collision between projectile and a rock, we must destroy both
-                        // TODO: check
                         if (Math.abs(rockXy.x - projectile.x) < rock.size
                             && Math.abs(rockXy.y - projectile.y) < rock.size) {
                             gameState.rocks[ixRock] = null;
@@ -279,9 +280,9 @@
                 window.requestAnimationFrame(() => {
                     ctx.clearRect(0, 0, constants.width, constants.height);
 
-                    if (gameState.viewRotation > 0.3) {
+                    if (gameState.viewRotation > 0.9 * constants.maxViewRotatation) {
                         ctx.rect(constants.width - 10, 0, constants.width, constants.height);
-                    } else if (gameState.viewRotation < -0.3) {
+                    } else if (gameState.viewRotation < -0.9 * constants.maxViewRotatation) {
                         ctx.rect(0, 0, 10, constants.height);
                     }
 
