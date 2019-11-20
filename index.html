@@ -62,6 +62,7 @@
 
             let gameState = {};
             resetGameState();
+
             function resetGameState() {
                 gameState = {
                     weaponReloading: false,
@@ -70,8 +71,11 @@
                     viewRotateSpeed: 0,
                     viewRotation: 0,
                     shoot: null,
-                    maxRocks: 16
+                    maxRocks: constants.width * constants.height / 20000,
+                    on: false,
+                    startDt: new Date()
                 };
+                introRocks();
             }
 
             function translateX(x, y, angle) {
@@ -119,12 +123,12 @@
             }
 
             function drawShip(x, y) {
-                ctx.beginPath()
-                lineToWithRotation(ctx, x, y, 0, 0, gameState.viewRotation*0.04)
-                lineToWithRotation(ctx, x, y, -20, 30, gameState.viewRotation*0.04)
-                lineToWithRotation(ctx, x, y, +20, 30, gameState.viewRotation*0.04)
-                ctx.closePath()
-                ctx.stroke()
+                ctx.beginPath();
+                lineToWithRotation(ctx, x, y, 0, 0, gameState.viewRotation*0.04);
+                lineToWithRotation(ctx, x, y, -20, 30, gameState.viewRotation*0.04);
+                lineToWithRotation(ctx, x, y, +20, 30, gameState.viewRotation*0.04);
+                ctx.closePath();
+                ctx.stroke();
                 ctx.fill();
             }
 
@@ -140,12 +144,43 @@
                         angle: Math.random() * 10,
                         size: size,
                         shape: 1 + Math.random() * 0.35
-                    })
+                    });
+                }
+            }
+
+            function introRocks() {
+                let titleAscii = `
+                    **  *** ***   *  * *** 
+                    * * * * *     * *  *   
+                    **  * * *     **   *** 
+                    * * * * *     * *    * 
+                    * * *** ***   *  * *** 
+                `.split("\n").map(x => x.trim());
+
+                let maxY = titleAscii.length;
+                let maxX = titleAscii.reduce((m,x) => x.length > m ? x.length : m, 0) + 1;
+                let charY = constants.height / maxY / 2.2;
+                let charX = constants.width / maxX;
+
+                let minChar = Math.min(charX, charY);
+
+                for(let i = 0; i<titleAscii.length; i++) {
+                    for(let j = 0; j<titleAscii[i].length; j++) {
+                        if (titleAscii[i][j] != ' ') {
+                            gameState.rocks.push({
+                                y: minChar+(i-1)*charY,
+                                x: minChar+j*charX,//+ 400 ,
+                                angle: 10,
+                                size: minChar/2.2 + Math.random()*minChar/10,
+                                shape: 1
+                            });
+                        }
+                    }
                 }
             }
 
             function getNormalizedVector(projectile) {
-                let vecX = (projectile.toX - projectile.fromX);
+                let vecX = projectile.toX - projectile.fromX;
                 let vecY = Math.abs(projectile.toY - projectile.fromY);
                 let vecLength = Math.sqrt(vecX * vecX + vecY * vecY);
 
@@ -157,7 +192,9 @@
 
             canvas.addEventListener('mousedown', ev => {
                 if (gameState.weaponReloading)
-                    return
+                    return;
+
+                gameState.on = true;
 
                 // https://stackoverflow.com/questions/17130395/real-mouse-position-in-canvas
                 let rect = canvas.getBoundingClientRect();
@@ -173,10 +210,10 @@
 
             let timeStamp = Date.now();
             let loop = setInterval(() => {
-                let timeDiff = Date.now() - timeStamp;
+                let timeDiff = gameState.on ? Date.now() - timeStamp : 0;
                 timeStamp = Date.now();
 
-                gameState.maxRocks += timeDiff/100;
+                gameState.maxRocks += (constants.width * constants.height / (10 * 10000000)) * timeDiff;
                 
 
                 if (gameState.shoot) {
@@ -199,7 +236,6 @@
                     gameState.projectiles.push(projectile);
 
                     let normalizedVector = getNormalizedVector(projectile);
-                    //gameState.viewRotateSpeed += ((constants.width / 2 - gameState.shoot.x) / constants.width) * constants.maxViewRotateSpeed * 0.01 * timeDiff;
                     gameState.viewRotateSpeed -= normalizedVector.x/100000*timeDiff;
                     
                     gameState.shoot = null;
@@ -228,8 +264,14 @@
 
                     if (Math.abs(xy.x - constants.shipX) < (20 + rock.size / 4)
                         && Math.abs(xy.y - constants.shipY) < (10 + rock.size / 4)) {
-alert(gameState.maxRocks);  // 940 
-                        if (true || confirm("Game over. Play again?")) {
+                        
+                        let dateDiff = new Date() - gameState.startDt;
+
+                        let minutes = Math.floor(dateDiff / 1000 / 60);
+                        let seconds = Math.floor(dateDiff / 1000 % 60);
+                        let ms = (minutes+"").padStart(2, '0') + ":" + (seconds+"").padStart(2, '0');
+
+                        if (confirm("Your time alive: "+ ms + ".\nPlay again?")) {
                             resetGameState();
                         }
                     }
@@ -294,6 +336,13 @@ alert(gameState.maxRocks);  // 940
 
                     for (let rock of gameState.rocks) {
                         drawRock(rock);
+                    }
+
+                    if (!gameState.on) {
+                        ctx.font = "24px Georgia";
+                        ctx.textAlign = "center";
+                        ctx.fillText("Steer by shooting.", constants.width/2, constants.height/2);
+                        ctx.fillText("Shoot to start (click).", constants.width/2, constants.height/2 + 40);
                     }
 
                     drawShip(constants.shipX, constants.shipY, 0);
