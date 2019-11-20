@@ -73,9 +73,20 @@
                     shoot: null,
                     maxRocks: constants.width * constants.height / 20000,
                     on: false,
-                    startDt: new Date()
+                    startDt: new Date(),
+                    timeStamp: null,
+                    gameLoopInterval: setInterval(gameLoopFn, 20),
+                    endDt: null
                 };
                 introRocks();
+            }
+
+            function getTimeFormatted() {
+                let dateDiff = (gameState.endDt || new Date()) - gameState.startDt;
+                let minutes = Math.floor(dateDiff / 1000 / 60);
+                let seconds = Math.floor(dateDiff / 1000 % 60);
+                let ms = (minutes+"").padStart(2, '0') + ":" + (seconds+"").padStart(2, '0');
+                return ms;
             }
 
             function translateX(x, y, angle) {
@@ -102,7 +113,7 @@
             }
 
             function drawRock(rock) {
-                ctx.beginPath()
+                ctx.beginPath();
 
                 for (let i = 0; i < 2 * Math.PI; i += rock.shape) {
                     let x = Math.sin(i) * rock.size
@@ -112,8 +123,9 @@
                     ctx.lineTo(xy.x, xy.y)
                 }
 
-                ctx.closePath()
-                ctx.stroke()
+                ctx.closePath();
+                ctx.strokeStyle = 'rgba(0, 0, 0, ' + rock.opacity + ')';
+                ctx.stroke();
             }
 
             function drawProjectile(projectile) {
@@ -143,7 +155,9 @@
                         y: y,
                         angle: Math.random() * 10,
                         size: size,
-                        shape: 1 + Math.random() * 0.35
+                        shape: 1 + Math.random() * 0.35,
+                        goodbye: false,
+                        opacity: 1
                     });
                 }
             }
@@ -169,10 +183,12 @@
                         if (titleAscii[i][j] != ' ') {
                             gameState.rocks.push({
                                 y: minChar+(i-1)*charY,
-                                x: minChar+j*charX,//+ 400 ,
+                                x: minChar+j*charX,
                                 angle: 10,
                                 size: minChar/2.2 + Math.random()*minChar/10,
-                                shape: 1
+                                shape: 1,
+                                goodbye: false,
+                                opacity: 1
                             });
                         }
                     }
@@ -194,6 +210,11 @@
                 if (gameState.weaponReloading)
                     return;
 
+                if (gameState.endDt) {
+                    resetGameState();
+                    return;
+                }
+
                 gameState.on = true;
 
                 // https://stackoverflow.com/questions/17130395/real-mouse-position-in-canvas
@@ -208,23 +229,14 @@
                 setTimeout(() => gameState.weaponReloading = false, 500);
             }, false);
 
-            let timeStamp = Date.now();
-            let loop = setInterval(() => {
-                let timeDiff = gameState.on ? Date.now() - timeStamp : 0;
-                timeStamp = Date.now();
+            function gameLoopFn() {
+                let timeDiff = gameState.on && gameState.timeStamp ? Date.now() - gameState.timeStamp : 0;
+                gameState.timeStamp = Date.now();
 
                 gameState.maxRocks += (constants.width * constants.height / (10 * 10000000)) * timeDiff;
                 
 
                 if (gameState.shoot) {
-                    // draw aim
-                    /*ctx.beginPath()
-                    ctx.arc(gameState.shoot.x, gameState.shoot.y, 5, 0, Math.PI * 2)
-                    ctx.stroke()
-                    ctx.fill();*/
-
-                    //let xy = calculateXY(constants.width / 2, constants.height - 70, 0, 0, -gameState.viewRotation)
-
                     let projectile = {
                         fromX: constants.shipX,
                         fromY: constants.shipY,
@@ -259,21 +271,28 @@
 
                 generateRocks();
 
-                for (let rock of gameState.rocks) {
+                for (let ixRock in gameState.rocks) {
+                    let rock = gameState.rocks[ixRock];
+                    if (!rock) {
+                        continue;
+                    }
+
                     let xy = calculateXY(rock.x, rock.y, 0, 0, gameState.viewRotation);
 
-                    if (Math.abs(xy.x - constants.shipX) < (20 + rock.size / 4)
+                    if (rock.goodbye) {
+                        rock.size -= rock.size * timeDiff/100;
+                        rock.opacity = Math.max(0, rock.opacity - timeDiff/200);
+
+                        if (rock.opacity < 0.1) {
+                            gameState.rocks[ixRock] = null;
+                        }
+                    } else if (Math.abs(xy.x - constants.shipX) < (20 + rock.size / 4)
                         && Math.abs(xy.y - constants.shipY) < (10 + rock.size / 4)) {
                         
-                        let dateDiff = new Date() - gameState.startDt;
+                        gameState.endDt = new Date();
+                        clearInterval(gameState.gameLoopInterval);
+                        break;
 
-                        let minutes = Math.floor(dateDiff / 1000 / 60);
-                        let seconds = Math.floor(dateDiff / 1000 % 60);
-                        let ms = (minutes+"").padStart(2, '0') + ":" + (seconds+"").padStart(2, '0');
-
-                        if (confirm("Your time alive: "+ ms + ".\nPlay again?")) {
-                            resetGameState();
-                        }
                     }
 
                     //rock.angle += gameState.viewRotateSpeed * timeDiff;
@@ -301,13 +320,14 @@
                         // if there is a collision between projectile and a rock, we must destroy both
                         if (Math.abs(rockXy.x - projectile.x) < rock.size
                             && Math.abs(rockXy.y - projectile.y) < rock.size) {
-                            gameState.rocks[ixRock] = null;
+                                //gameState.rocks[ixRock] = null;
+                            gameState.rocks[ixRock].goodbye = true;
                             gameState.projectiles[ixProjectile] = null;
                         }
                     }
                 }
 
-                // cleanup: delete rocks and projectiles
+                // cleanup function - actually deletes rocks and projectiles
                 gameState.rocks = gameState.rocks.filter(r => {
                     if (!r) {
                         return false;
@@ -344,11 +364,21 @@
                         ctx.fillText("Steer by shooting.", constants.width/2, constants.height/2);
                         ctx.fillText("Shoot to start (click).", constants.width/2, constants.height/2 + 40);
                     }
+                    
+                    if (gameState.endDt) {
+                        ctx.font = "24px Georgia";
+                        ctx.textAlign = "center";
+                        ctx.rect(0, 0, constants.width, constants.height);
+                        ctx.fillStyle = "rgba(255,255,255,0.8)";
+                        ctx.fill();
+                        ctx.fillStyle = "rgba(0,0,0,1)";
+                        ctx.fillText(getTimeFormatted(), constants.width/2, constants.height/2);
+                        ctx.fillText("Click to play again...", constants.width/2, constants.height/2 + 40);
+                    }
 
                     drawShip(constants.shipX, constants.shipY, 0);
                 });
-
-            }, 20);
+            }
 
         };
     </script>
