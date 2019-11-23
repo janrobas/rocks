@@ -1,18 +1,18 @@
 //export function rocksGameInit() {     // ES6 modules don't work without web server (CORS limitations)
-window.rocksGameInit = function() {
+window.rocksGameInit = function () {
     let body = document.getElementsByTagName("body")[0];
 
-    let gameHeight = 700;
+    let gameHeight = 600;
     let gameWidth = gameHeight * body.clientWidth / body.clientHeight;
 
     let canvas = document.getElementById("myCanvas")
 
-    let scalingFactor = Math.min(body.clientHeight/gameHeight, body.clientWidth/gameWidth);
+    let scalingFactor = Math.min(body.clientHeight / gameHeight, body.clientWidth / gameWidth);
     canvas.height = gameHeight * scalingFactor;
     canvas.width = gameWidth * scalingFactor;
 
-    let maxRocks = gameHeight * gameWidth / 4500;
-    
+    let maxRocks = gameHeight * gameWidth / 4400;
+
     let constants = {
         asteroidSpeed: 0.08,
         projectileSpeed: 0.16,
@@ -26,7 +26,6 @@ window.rocksGameInit = function() {
         scalingFactor: scalingFactor
     };
 
-    
     let ctx = canvas.getContext("2d")
     ctx.scale(constants.scalingFactor, constants.scalingFactor);
 
@@ -55,7 +54,7 @@ window.rocksGameInit = function() {
         let dateDiff = (gameState.endDt || new Date()) - gameState.startDt;
         let minutes = Math.floor(dateDiff / 1000 / 60);
         let seconds = Math.floor(dateDiff / 1000 % 60);
-        let ms = (minutes+"").padStart(2, '0') + ":" + (seconds+"").padStart(2, '0');
+        let ms = (minutes + "").padStart(2, '0') + ":" + (seconds + "").padStart(2, '0');
         return ms;
     }
 
@@ -95,22 +94,24 @@ window.rocksGameInit = function() {
 
         ctx.closePath();
         ctx.strokeStyle = 'rgba(0, 0, 0, ' + rock.opacity + ')';
-        ctx.stroke();
+        ctx.fillStyle = "#55ffffee";
+        ctx.fill();
     }
 
     function drawProjectile(projectile) {
         ctx.beginPath()
         ctx.arc(projectile.x, projectile.y, 5, 0, Math.PI * 2)
-        ctx.stroke()
+        ctx.fillStyle = "#ffff55";
+        ctx.fill();
     }
 
     function drawShip(x, y) {
         ctx.beginPath();
-        lineToWithRotation(ctx, x, y, 0, 0, gameState.viewRotation*0.04);
-        lineToWithRotation(ctx, x, y, -20, 30, gameState.viewRotation*0.04);
-        lineToWithRotation(ctx, x, y, +20, 30, gameState.viewRotation*0.04);
+        lineToWithRotation(ctx, x, y, 0, 0, gameState.viewRotation * 0.04);
+        lineToWithRotation(ctx, x, y, -20, 30, gameState.viewRotation * 0.04);
+        lineToWithRotation(ctx, x, y, +20, 30, gameState.viewRotation * 0.04);
+        ctx.fillStyle = "#ff55ff";
         ctx.closePath();
-        ctx.stroke();
         ctx.fill();
     }
 
@@ -118,7 +119,7 @@ window.rocksGameInit = function() {
         for (let n = 0; n < gameState.maxRocks - gameState.rocks.length; n++) {
             let size = 11 + Math.random() * 17;
             let x = (Math.random() * constants.width * 2.8) - constants.width * 1.4;
-            let y = -(size * 4 + Math.random() * constants.height) - constants.height/2;
+            let y = -(size * 4 + Math.random() * constants.height) - constants.height / 2;
 
             gameState.rocks.push({
                 x: x,
@@ -134,28 +135,28 @@ window.rocksGameInit = function() {
 
     function introRocks() {
         let titleAscii = `
-            **  *** ***   *  * *** 
-            * * * * *     * *  *   
-            **  * * *     **   *** 
-            * * * * *     * *    * 
-            * * *** ***   *  * *** 
+            **  ***        *  * *** 
+            * * * * ***    * *  *   
+            **  * * *      **   *** 
+            * * *** *      * *    * 
+            * *     ***    *  * *** 
         `.split("\n").map(x => x.trim());
 
         let maxY = titleAscii.length;
-        let maxX = titleAscii.reduce((m,x) => x.length > m ? x.length : m, 0) + 1;
+        let maxX = titleAscii.reduce((m, x) => x.length > m ? x.length : m, 0) + 1;
         let charY = constants.height / maxY / 2.2;
         let charX = constants.width / maxX;
 
         let minChar = Math.min(charX, charY);
 
-        for(let i = 0; i<titleAscii.length; i++) {
-            for(let j = 0; j<titleAscii[i].length; j++) {
+        for (let i = 0; i < titleAscii.length; i++) {
+            for (let j = 0; j < titleAscii[i].length; j++) {
                 if (titleAscii[i][j] != ' ') {
                     gameState.rocks.push({
-                        y: minChar+(i-1)*charY,
-                        x: minChar+j*charX,
+                        y: minChar + (i - 1) * charY,
+                        x: minChar + j * charX,
                         angle: 10,
-                        size: minChar/2.2 + Math.random()*minChar/10,
+                        size: minChar / 2.2 + Math.random() * minChar / 10,
                         shape: 1,
                         goodbye: false,
                         opacity: 1
@@ -180,7 +181,7 @@ window.rocksGameInit = function() {
         if (gameState.weaponReloading)
             return;
 
-        if (gameState.endDt) {
+        if (gameState.endDt && new Date() - gameState.endDt > 1500) {
             resetGameState();
             return;
         }
@@ -190,8 +191,8 @@ window.rocksGameInit = function() {
         // https://stackoverflow.com/questions/17130395/real-mouse-position-in-canvas
         let rect = canvas.getBoundingClientRect();
         gameState.shoot = {
-            x: (ev.clientX - rect.left) * 1/constants.scalingFactor,
-            y: (ev.clientY - rect.top) * 1/constants.scalingFactor
+            x: (ev.clientX - rect.left) * 1 / constants.scalingFactor,
+            y: (ev.clientY - rect.top) * 1 / constants.scalingFactor
         };
 
         gameState.weaponReloading = true;
@@ -203,8 +204,8 @@ window.rocksGameInit = function() {
         let timeDiff = gameState.on && gameState.timeStamp ? Date.now() - gameState.timeStamp : 0;
         gameState.timeStamp = Date.now();
 
-        gameState.maxRocks += (constants.width * constants.height / (10 * 10000000)) * timeDiff;
-        
+        gameState.maxRocks += (constants.width * constants.height / (10 * 10000000 * 2)) * timeDiff;
+
 
         if (gameState.shoot) {
             let projectile = {
@@ -218,8 +219,8 @@ window.rocksGameInit = function() {
             gameState.projectiles.push(projectile);
 
             let normalizedVector = getNormalizedVector(projectile);
-            gameState.viewRotateSpeed -= normalizedVector.x/100000*timeDiff;
-            
+            gameState.viewRotateSpeed -= normalizedVector.x / 100000 * timeDiff;
+
             gameState.shoot = null;
         }
 
@@ -250,15 +251,15 @@ window.rocksGameInit = function() {
             let xy = calculateXY(rock.x, rock.y, 0, 0, gameState.viewRotation);
 
             if (rock.goodbye) {
-                rock.size -= rock.size * timeDiff/100;
-                rock.opacity = Math.max(0, rock.opacity - timeDiff/200);
+                rock.size -= rock.size * timeDiff / 200;
+                rock.opacity = Math.max(0, rock.opacity - timeDiff / 200);
 
                 if (rock.opacity < 0.1) {
                     gameState.rocks[ixRock] = null;
                 }
             } else if (Math.abs(xy.x - constants.shipX) < (20 + rock.size / 4)
                 && Math.abs(xy.y - constants.shipY) < (10 + rock.size / 4)) {
-                
+
                 gameState.endDt = new Date();
                 clearInterval(gameState.gameLoopInterval);
                 break;
@@ -290,7 +291,6 @@ window.rocksGameInit = function() {
                 // if there is a collision between projectile and a rock, we must destroy both
                 if (Math.abs(rockXy.x - projectile.x) < rock.size
                     && Math.abs(rockXy.y - projectile.y) < rock.size) {
-                        //gameState.rocks[ixRock] = null;
                     gameState.rocks[ixRock].goodbye = true;
                     gameState.projectiles[ixProjectile] = null;
                 }
@@ -312,13 +312,18 @@ window.rocksGameInit = function() {
         window.requestAnimationFrame(() => {
             ctx.clearRect(0, 0, constants.width, constants.height);
 
+            let gradient = ctx.createLinearGradient(0, constants.height / 1.5, 0, 0);
+            gradient.addColorStop(0, "#111177");
+            gradient.addColorStop(1, "#000000");
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, constants.width, constants.height);
+
+
             if (gameState.viewRotation > 0.9 * constants.maxViewRotatation) {
                 ctx.rect(constants.width - 10, 0, constants.width, constants.height);
             } else if (gameState.viewRotation < -0.9 * constants.maxViewRotatation) {
                 ctx.rect(0, 0, 10, constants.height);
             }
-
-            ctx.fill();
 
             for (let projectile of gameState.projectiles) {
                 drawProjectile(projectile);
@@ -331,19 +336,19 @@ window.rocksGameInit = function() {
             if (!gameState.on) {
                 ctx.font = "24px Georgia";
                 ctx.textAlign = "center";
-                ctx.fillText("Steer by shooting.", constants.width/2, constants.height/2);
-                ctx.fillText("Shoot to start (click).", constants.width/2, constants.height/2 + 40);
+                ctx.fillStyle = "#ff55ff";
+                ctx.fillText("Steer by shooting.", constants.width / 2, constants.height / 2);
+                ctx.fillText("Shoot to start (click).", constants.width / 2, constants.height / 2 + 40);
             }
-            
+
             if (gameState.endDt) {
                 ctx.font = "24px Georgia";
                 ctx.textAlign = "center";
                 ctx.rect(0, 0, constants.width, constants.height);
-                ctx.fillStyle = "rgba(255,255,255,0.8)";
+                ctx.fillStyle = "#000000aa";
                 ctx.fill();
-                ctx.fillStyle = "rgba(0,0,0,1)";
-                ctx.fillText(getTimeFormatted(), constants.width/2, constants.height/2);
-                ctx.fillText("Click to play again...", constants.width/2, constants.height/2 + 40);
+                ctx.fillStyle = "#ff55ff";
+                ctx.fillText("Your time alive: " + getTimeFormatted(), constants.width / 2, constants.height / 2);
             }
 
             drawShip(constants.shipX, constants.shipY, 0);
