@@ -1,22 +1,14 @@
-//export function rocksGameInit() {     // ES6 modules don't work without web server (CORS limitations)
-window.rocksGameInit = function () {
-    let body = document.getElementsByTagName("body")[0];
-
+window.rocksGameInit = function ($canvas) {
     let gameHeight = 600;
-    let gameWidth = gameHeight * body.clientWidth / body.clientHeight;
+    let gameWidth = gameHeight * $canvas.clientWidth / $canvas.clientHeight;
 
-    let canvas = document.getElementById("myCanvas")
-
-    let scalingFactor = Math.min(body.clientHeight / gameHeight, body.clientWidth / gameWidth);
-    canvas.height = gameHeight * scalingFactor;
-    canvas.width = gameWidth * scalingFactor;
-
-    let maxRocks = gameHeight * gameWidth / 4400;
+    let scalingFactor = Math.min($canvas.clientHeight / gameHeight, $canvas.clientWidth / gameWidth);
+    $canvas.height = gameHeight * scalingFactor;
+    $canvas.width = gameWidth * scalingFactor;
 
     let constants = {
         asteroidSpeed: 0.08,
         projectileSpeed: 0.16,
-        maxRocks: maxRocks,
         maxViewRotateSpeed: 0.001,
         maxViewRotatation: 0.25,
         shipX: gameWidth / 2,
@@ -26,7 +18,7 @@ window.rocksGameInit = function () {
         scalingFactor: scalingFactor
     };
 
-    let ctx = canvas.getContext("2d")
+    let ctx = $canvas.getContext("2d")
     ctx.scale(constants.scalingFactor, constants.scalingFactor);
 
     let gameState = {};
@@ -40,14 +32,14 @@ window.rocksGameInit = function () {
             viewRotateSpeed: 0,
             viewRotation: 0,
             shoot: null,
-            maxRocks: constants.width * constants.height / 20000,
-            on: false,
-            startDt: new Date(),
+            maxRocks: constants.width * constants.height / 20000,   // value to start from
+            gameLoopOn: false,
             timeStamp: null,
-            gameLoopInterval: setInterval(gameLoopFn, 20),
+            gameLoopInterval: setInterval(gameLoop, 20),
+            startDt: new Date(),
             endDt: null
         };
-        introRocks();
+        addIntroRocks();
     }
 
     function getTimeFormatted() {
@@ -59,16 +51,16 @@ window.rocksGameInit = function () {
     }
 
     function translateX(x, y, angle) {
-        return x * Math.cos(angle) - y * Math.sin(angle)
+        return x * Math.cos(angle) - y * Math.sin(angle);
     }
 
     function translateY(x, y, angle) {
-        return x * Math.sin(angle) + y * Math.cos(angle)
+        return x * Math.sin(angle) + y * Math.cos(angle);
     }
 
     function calculateXY(originX, originY, x, y, angle) {
-        newX = originX + translateX(x, y, angle)
-        newY = originY + translateY(x, y, angle)
+        newX = originX + translateX(x, y, angle);
+        newY = originY + translateY(x, y, angle);
 
         return {
             x: translateX(newX, newY, angle),
@@ -85,11 +77,11 @@ window.rocksGameInit = function () {
         ctx.beginPath();
 
         for (let i = 0; i < 2 * Math.PI; i += rock.shape) {
-            let x = Math.sin(i) * rock.size
-            let y = Math.cos(i) * rock.size
+            let x = Math.sin(i) * rock.size;
+            let y = Math.cos(i) * rock.size;
 
-            let xy = calculateXY(rock.x, rock.y, x, y, gameState.viewRotation)
-            ctx.lineTo(xy.x, xy.y)
+            let xy = calculateXY(rock.x, rock.y, x, y, gameState.viewRotation);
+            ctx.lineTo(xy.x, xy.y);
         }
 
         ctx.closePath();
@@ -99,8 +91,8 @@ window.rocksGameInit = function () {
     }
 
     function drawProjectile(projectile) {
-        ctx.beginPath()
-        ctx.arc(projectile.x, projectile.y, 5, 0, Math.PI * 2)
+        ctx.beginPath();
+        ctx.arc(projectile.x, projectile.y, 5, 0, Math.PI * 2);
         ctx.fillStyle = "#ffff55";
         ctx.fill();
     }
@@ -133,7 +125,7 @@ window.rocksGameInit = function () {
         }
     }
 
-    function introRocks() {
+    function addIntroRocks() {
         let titleAscii = `
             **  ***        *  * *** 
             * * * * ***    * *  *   
@@ -177,7 +169,22 @@ window.rocksGameInit = function () {
         };
     }
 
-    canvas.addEventListener('mousedown', ev => {
+    function rocksAndProjectilesCleanup() {
+        // cleanup - actually deletes rocks and projectiles
+        gameState.rocks = gameState.rocks.filter(r => {
+            if (!r) {
+                return false;
+            }
+
+            let rockXy = calculateXY(r.x, r.y, 0, 0, gameState.viewRotation);
+
+            return rockXy.y < constants.height + r.size * 4;
+        });
+
+        gameState.projectiles = gameState.projectiles.filter(p => p);
+    }
+
+    $canvas.addEventListener('mousedown', ev => {
         if (gameState.weaponReloading)
             return;
 
@@ -189,7 +196,7 @@ window.rocksGameInit = function () {
         gameState.on = true;
 
         // https://stackoverflow.com/questions/17130395/real-mouse-position-in-canvas
-        let rect = canvas.getBoundingClientRect();
+        let rect = $canvas.getBoundingClientRect();
         gameState.shoot = {
             x: (ev.clientX - rect.left) * 1 / constants.scalingFactor,
             y: (ev.clientY - rect.top) * 1 / constants.scalingFactor
@@ -200,12 +207,11 @@ window.rocksGameInit = function () {
         setTimeout(() => gameState.weaponReloading = false, 500);
     }, false);
 
-    function gameLoopFn() {
+    function gameLoop() {
         let timeDiff = gameState.on && gameState.timeStamp ? Date.now() - gameState.timeStamp : 0;
         gameState.timeStamp = Date.now();
 
         gameState.maxRocks += (constants.width * constants.height / (10 * 10000000 * 2)) * timeDiff;
-
 
         if (gameState.shoot) {
             let projectile = {
@@ -266,7 +272,6 @@ window.rocksGameInit = function () {
 
             }
 
-            //rock.angle += gameState.viewRotateSpeed * timeDiff;
             rock.y += constants.asteroidSpeed * timeDiff;
         }
 
@@ -277,8 +282,8 @@ window.rocksGameInit = function () {
             }
 
             let normalizedVector = getNormalizedVector(projectile);
-            projectile.x += normalizedVector.x * constants.projectileSpeed * timeDiff
-            projectile.y -= normalizedVector.y * constants.projectileSpeed * timeDiff
+            projectile.x += normalizedVector.x * constants.projectileSpeed * timeDiff;
+            projectile.y -= normalizedVector.y * constants.projectileSpeed * timeDiff;
 
             for (let ixRock in gameState.rocks) {
                 let rock = gameState.rocks[ixRock];
@@ -297,33 +302,19 @@ window.rocksGameInit = function () {
             }
         }
 
-        // cleanup function - actually deletes rocks and projectiles
-        gameState.rocks = gameState.rocks.filter(r => {
-            if (!r) {
-                return false;
-            }
-
-            let rockXy = calculateXY(r.x, r.y, 0, 0, gameState.viewRotation);
-
-            return rockXy.y < constants.height + r.size * 4;
-        });
-        gameState.projectiles = gameState.projectiles.filter(p => p);
+        rocksAndProjectilesCleanup();
 
         window.requestAnimationFrame(() => {
             ctx.clearRect(0, 0, constants.width, constants.height);
 
-            let gradient = ctx.createLinearGradient(0, constants.height / 1.5, 0, 0);
+            let gradient = ctx.createLinearGradient(0, constants.height / 2, 0, 0);
+            ctx.save();
             gradient.addColorStop(0, "#111177");
             gradient.addColorStop(1, "#000000");
+            ctx.rotate(gameState.viewRotation);
             ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, constants.width, constants.height);
-
-
-            if (gameState.viewRotation > 0.9 * constants.maxViewRotatation) {
-                ctx.rect(constants.width - 10, 0, constants.width, constants.height);
-            } else if (gameState.viewRotation < -0.9 * constants.maxViewRotatation) {
-                ctx.rect(0, 0, 10, constants.height);
-            }
+            ctx.fillRect(-constants.width, -constants.height, constants.width * 3, constants.height * 3);
+            ctx.restore();
 
             for (let projectile of gameState.projectiles) {
                 drawProjectile(projectile);

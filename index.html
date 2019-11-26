@@ -8,14 +8,14 @@
 </head>
 
 <body>
-    <canvas id="myCanvas">
+    <canvas id="game-canvas">
     </canvas>
 
     <script src="rocksGameInit.js"></script>
 
     <script>
         (function () {
-            setTimeout(rocksGameInit, 0);
+            setTimeout(() => rocksGameInit(document.getElementById("game-canvas")), 0);
         })();
     </script>
 </body>

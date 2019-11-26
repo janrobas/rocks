@@ -8,8 +8,8 @@ Clone the repository and just open `index.html` in your favorite browser.
 
 ## Playing
 
-In this game, you fly your spaceship among rocks. If you hit a rock, it's game over.
-You can also destroy rocks by shooting them. You shoot by clicking/tapping in the direction you want to shoot.
+In this game, you fly a spaceship among rocks. If you hit a rock, it's game over.
+You can destroy rocks by shooting them. You shoot by clicking/tapping in the direction you want to shoot.
 Every time you shoot, you steer the ship in the opposite direction.
 
 ## License
